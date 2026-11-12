@@ -1,0 +1,26 @@
+# 本地密钥与运行数据（绝不提交）
+infra/.env
+.env
+infra/runtime/
+infra/translations/
+infra/extensions/
+
+# Superset 源码不随仓库分发：fork 后克隆到该目录，或用 SUPERSET_SRC 指定
+superset-7.0.0rc2/
+
+# 构建产物与依赖
+**/node_modules/
+**/dist/
+**/__pycache__/
+**/.pytest_cache/
+*.pyc
+*.supx
+*.log
+*.db
+.venv/
+venv/
+
+# 本机工具/素材的临时产物
+.mimosa/
+vibe_images/
+.DS_Store

@@ -1,0 +1,41 @@
+[
+  {
+    "id": "list-datasets",
+    "question": "当前有哪些数据集可用？",
+    "expected_tools": ["list_datasets"]
+  },
+  {
+    "id": "dataset-metrics",
+    "question": "sales 数据集有哪些可用指标和字段？",
+    "expected_tools": ["get_dataset_info"]
+  },
+  {
+    "id": "region-query",
+    "question": "各区域销售额是多少？",
+    "expected_tools": ["query_dataset"]
+  },
+  {
+    "id": "category-contribution",
+    "question": "按品类看销售额贡献，哪个品类拉动最大？",
+    "expected_tools": ["dimension_contribution"]
+  },
+  {
+    "id": "period-compare",
+    "question": "2026 年 10 月和上个月同期相比怎么样？",
+    "expected_tools": ["period_compare"]
+  },
+  {
+    "id": "admin-sql",
+    "question": "用 SQL 查各区域销售额",
+    "expected_tools": ["run_sql"],
+    "roles": ["Admin"],
+    "username": "admin"
+  },
+  {
+    "id": "east-rls",
+    "question": "各区域订单数是多少？",
+    "expected_tools": ["query_dataset"],
+    "roles": ["sales_east"],
+    "username": "east"
+  }
+]

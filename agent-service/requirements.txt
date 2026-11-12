@@ -1,0 +1,15 @@
+fastapi>=0.115,<1
+uvicorn[standard]>=0.32,<1
+pydantic>=2.10,<3
+pydantic-ai-slim[openai,ui]>=2.61,<3
+pandas>=2.2,<3
+numpy>=1.26,<3
+scipy>=1.11,<2
+statsmodels>=0.14,<0.15
+PyJWT>=2.9,<3
+httpx>=0.27,<1
+sqlglot>=25,<30
+SQLAlchemy>=2.0,<3
+cryptography>=42,<50
+itsdangerous>=2.2,<3
+pymysql>=1.1,<2

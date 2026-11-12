@@ -1,0 +1,182 @@
+name: assistant
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: assistant-redis
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+
+  superset:
+    image: dataagent-superset:7.0-mysql
+    container_name: assistant-superset
+    pull_policy: never
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+    depends_on:
+      redis:
+        condition: service_started
+    ports:
+      - "${SUPERSET_HTTP_PORT:-8088}:8088"
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      FLASK_APP: superset.app:create_app()
+      SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
+      SUPERSET_PORT: "8088"
+      SUPERSET_LOAD_EXAMPLES: "no"
+    volumes:
+      - ./superset_config.py:/app/pythonpath/superset_config.py:ro
+      - ./seed_superset.py:/app/pythonpath/seed_superset.py:ro
+      - ../assistant-ext/assistant:/app/local_extensions/assistant:ro
+      - ./extensions:/app/extensions:ro
+      - ./translations/zh-LC-messages.json:/app/superset/translations/zh/LC_MESSAGES/messages.json:ro
+      - ./runtime:/app/runtime
+    command: ["/app/docker/docker-bootstrap.sh", "app-gunicorn"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8088/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  superset-worker:
+    image: dataagent-superset:7.0-mysql
+    container_name: assistant-superset-worker
+    pull_policy: never
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+    depends_on:
+      redis:
+        condition: service_started
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      FLASK_APP: superset.app:create_app()
+      SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
+      CELERYD_CONCURRENCY: "2"
+    volumes:
+      - ./superset_config.py:/app/pythonpath/superset_config.py:ro
+      - ./runtime:/app/runtime
+    command: ["/app/docker/docker-bootstrap.sh", "worker"]
+    healthcheck:
+      disable: true
+
+  superset-beat:
+    image: dataagent-superset:7.0-mysql
+    container_name: assistant-superset-beat
+    pull_policy: never
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+    depends_on:
+      redis:
+        condition: service_started
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      FLASK_APP: superset.app:create_app()
+      SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
+    volumes:
+      - ./superset_config.py:/app/pythonpath/superset_config.py:ro
+      - ./runtime:/app/runtime
+    command: ["/app/docker/docker-bootstrap.sh", "beat"]
+    healthcheck:
+      disable: true
+
+  superset-mcp:
+    image: dataagent-superset:7.0-mysql
+    container_name: assistant-mcp
+    pull_policy: never
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+    depends_on:
+      redis:
+        condition: service_started
+    ports:
+      - "${MCP_HTTP_PORT:-25008}:5008"
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      FLASK_APP: superset.app:create_app()
+      SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
+      MCP_PORT: "5008"
+    volumes:
+      - ./superset_config.py:/app/pythonpath/superset_config.py:ro
+      - ../assistant-ext/assistant:/app/local_extensions/assistant:ro
+      - ./extensions:/app/extensions:ro
+      - ./runtime:/app/runtime
+    command: ["/app/docker/docker-bootstrap.sh", "mcp"]
+    healthcheck:
+      disable: true
+
+  agent:
+    build:
+      context: ../agent-service
+    container_name: assistant-agent
+    restart: unless-stopped
+    user: "1000:1000"
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+    depends_on:
+      superset-mcp:
+        condition: service_started
+    ports:
+      - "${AGENT_HTTP_PORT:-28088}:28088"
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      AGENT_MCP_URL: http://superset-mcp:5008/mcp
+      AGENT_PORT: "28088"
+      PYTHONPATH: /app/src
+      HOME: /app/runtime
+    volumes:
+      - ../agent-service/src:/app/src
+      - ../agent-service/tests:/app/tests:ro
+      - ../assistant-admin/dist:/app/admin_static:ro
+      - ./runtime:/app/runtime
+    command:
+      - uvicorn
+      - assistant_agent.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "28088"
+      - --reload
+
+volumes:
+  redis_data:
